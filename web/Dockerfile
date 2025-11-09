@@ -30,11 +30,11 @@ COPY . .
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build the application (creates public/ directory with frontend assets)
-RUN pnpm run build
+# Skip build for now - just test with source files
+# RUN pnpm run build:npm
 
 # Expose the default port
 EXPOSE 4020
 
-# Default command - will be overridden by compose file
-CMD ["pnpm", "exec", "tsx", "src/cli.ts"]
+# Default command for testing
+CMD ["pnpm", "run", "test:ci"]
