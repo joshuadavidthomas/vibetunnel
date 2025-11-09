@@ -26,6 +26,9 @@ services:
     container_name: vibetunnel
     restart: unless-stopped
 
+    # Override Dockerfile's test command to start the server
+    command: ["pnpm", "exec", "tsx", "src/cli.ts"]
+
     environment:
       # Node environment (do not change)
       - NODE_ENV=production
