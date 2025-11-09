@@ -10,12 +10,8 @@ version: '3.8'
 #
 # DEPLOYMENT:
 #   1. Deploy this compose file in Coolify
-#   2. Define service in Tailscale admin: https://login.tailscale.com/admin/services
-#      Name: vibetunnel, Endpoints: tcp:443
-#   3. Configure and advertise: `sudo tailscale serve --service=svc:vibetunnel https://localhost:4020`
-#   4. Approve the host in admin console (if needed)
-#   5. Access VibeTunnel at: https://your-coolify-vps.tail1234.ts.net (no ports!)
-#   6. Only devices on your tailnet can access it!
+#   2. Access VibeTunnel at: http://your-coolify-vps.tail1234.ts.net:4020
+#   3. Only devices on your tailnet can access it!
 #
 # ENVIRONMENT VARIABLES:
 #   Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
