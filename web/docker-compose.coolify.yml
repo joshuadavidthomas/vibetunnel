@@ -1,0 +1,166 @@
+version: '3.8'
+
+# Coolify-optimized VibeTunnel deployment with Tailscale sidecar
+# This allows VibeTunnel to be accessible on your tailnet with automatic HTTPS and authentication
+
+services:
+  # Tailscale sidecar - provides secure access to your tailnet
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: vibetunnel-tailscale
+    hostname: vibetunnel
+    restart: unless-stopped
+
+    environment:
+      # REQUIRED: Set this in Coolify environment variables
+      # Get auth key from: https://login.tailscale.com/admin/settings/keys
+      - TS_AUTHKEY=${TS_AUTHKEY:?TS_AUTHKEY is required}
+
+      # Tailscale configuration
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=true
+      - TS_ACCEPT_DNS=true
+
+      # Optional: Tailscale Serve configuration (uncomment to enable)
+      # - TS_SERVE_CONFIG=/config/serve.json
+
+      # Optional: Custom hostname
+      # - TS_HOSTNAME=vibetunnel
+
+      # Optional: Enable SSH access via Tailscale
+      # - TS_SSH=true
+
+    volumes:
+      # Persistent Tailscale state (keeps your machine registered)
+      - tailscale-state:/var/lib/tailscale
+
+      # Optional: Tailscale Serve configuration
+      # - ./tailscale-serve.json:/config/serve.json:ro
+
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "tailscale", "status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    networks:
+      - vibetunnel-network
+
+  # VibeTunnel server
+  vibetunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: vibetunnel-app
+    restart: unless-stopped
+
+    # Depend on Tailscale being ready
+    depends_on:
+      tailscale:
+        condition: service_healthy
+
+    environment:
+      # Node environment
+      - NODE_ENV=production
+      - PORT=4020
+
+      # Authentication options
+      # Option 1: No auth (rely on Tailscale network security) - RECOMMENDED for Tailscale
+      - VIBETUNNEL_NO_AUTH=${VIBETUNNEL_NO_AUTH:-true}
+
+      # Option 2: Tailscale identity headers (if Tailscale Serve is configured)
+      # No additional config needed - auto-detected
+
+      # Option 3: Basic auth (uncomment if needed)
+      # - VIBETUNNEL_USERNAME=${VIBETUNNEL_USERNAME}
+      # - VIBETUNNEL_PASSWORD=${VIBETUNNEL_PASSWORD}
+
+      # Logging
+      - VIBETUNNEL_VERBOSITY=${VIBETUNNEL_VERBOSITY:-info}
+      - VIBETUNNEL_DEBUG=${VIBETUNNEL_DEBUG:-false}
+
+      # Push notifications
+      - PUSH_CONTACT_EMAIL=${PUSH_CONTACT_EMAIL:-noreply@vibetunnel.local}
+
+      # Git configuration (for terminal git operations)
+      - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-VibeTunnel}
+      - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-bot@vibetunnel.local}
+
+    volumes:
+      # Persistent session data
+      - vibetunnel-data:/home/vibetunnel/.vibetunnel
+
+      # Optional: Mount workspace directories from host
+      # - ${WORKSPACE_PATH:-/data/workspace}:/workspace:rw
+
+      # Optional: Mount SSH keys for git operations
+      # - ${SSH_KEYS_PATH:-~/.ssh}:/home/vibetunnel/.ssh:ro
+
+      # Optional: Mount git config
+      # - ${GIT_CONFIG_PATH:-~/.gitconfig}:/home/vibetunnel/.gitconfig:ro
+
+    # Expose port on the network (accessible to Tailscale container)
+    expose:
+      - "4020"
+
+    # For local testing, you can expose the port (comment out for production)
+    # ports:
+    #   - "127.0.0.1:4020:4020"
+
+    networks:
+      - vibetunnel-network
+
+    # Resource limits (adjust based on your server)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4020/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Tailscale Serve proxy (optional - enables HTTPS with Tailscale identity auth)
+  # Uncomment if you want Tailscale to handle HTTPS and authentication
+  # tailscale-serve:
+  #   image: tailscale/tailscale:latest
+  #   container_name: vibetunnel-tailscale-serve
+  #   restart: unless-stopped
+  #   command: serve --bg --https=443 http://vibetunnel:4020
+  #   depends_on:
+  #     - tailscale
+  #     - vibetunnel
+  #   network_mode: "service:tailscale"
+  #   volumes:
+  #     - tailscale-state:/var/lib/tailscale:ro
+
+networks:
+  vibetunnel-network:
+    driver: bridge
+
+volumes:
+  tailscale-state:
+    driver: local
+  vibetunnel-data:
+    driver: local
