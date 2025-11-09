@@ -63,7 +63,7 @@ This guide deploys VibeTunnel using Docker Compose on Coolify with:
 2. **Configure Repository**
    - Repository URL: `https://github.com/YOUR-USERNAME/vibetunnel.git`
    - Branch: `main` (or your deployment branch)
-   - Docker Compose Location: `web/docker-compose.coolify.yml`
+   - Docker Compose Location: `web/compose.yml`
 
 3. **Set Environment Variables**
 
@@ -100,7 +100,7 @@ If you prefer to paste the compose file directly:
    - Choose **Docker Compose (from file)**
 
 2. **Paste Docker Compose**
-   - Copy contents of `web/docker-compose.coolify.yml` from your repository
+   - Copy contents of `web/compose.yml` from your repository
    - Paste into Coolify editor
 
 3. **Configure Environment Variables**
@@ -227,7 +227,7 @@ Add persistent volumes in Coolify:
 
 ### Resource Limits
 
-Edit in `docker-compose.coolify.yml`:
+Edit in `compose.yml`:
 
 ```yaml
 deploy:
@@ -446,7 +446,7 @@ docker stats vibetunnel-app vibetunnel-tailscale
 ```
 
 **Reduce limits:**
-Edit `docker-compose.coolify.yml` and adjust:
+Edit `compose.yml` and adjust:
 ```yaml
 deploy:
   resources:
