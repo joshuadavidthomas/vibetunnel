@@ -9,7 +9,7 @@ Deploy VibeTunnel on Coolify with Tailscale for secure, authenticated terminal a
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 
-# 2. Deploy VibeTunnel in Coolify (point to web/compose.yml)
+# 2. Deploy VibeTunnel in Coolify (point to web/compose.coolify.yml)
 
 # 3. Access from any device on your tailnet
 # http://coolify-vps.tail1234.ts.net:4020
@@ -88,7 +88,7 @@ Save this hostname - you'll use it to access VibeTunnel!
 2. **Configure Repository**
    - Repository URL: `https://github.com/YOUR-USERNAME/vibetunnel.git`
    - Branch: `main` (or your deployment branch)
-   - Docker Compose Location: `web/compose.yml`
+   - Docker Compose Location: `web/compose.coolify.yml`
 
 3. **Configure Environment Variables (Optional)**
 
@@ -121,7 +121,7 @@ If you prefer to paste the compose file directly:
    - Choose **Docker Compose (from file)**
 
 2. **Paste Docker Compose**
-   - Copy contents of `web/compose.yml` from your repository
+   - Copy contents of `web/compose.coolify.yml` from your repository
    - Paste into Coolify editor
 
 3. **Configure Environment Variables (Optional)**
@@ -239,7 +239,7 @@ Add persistent volumes in Coolify:
 
 ### Resource Limits
 
-Edit in `compose.yml`:
+Edit in `compose.coolify.yml`:
 
 ```yaml
 deploy:
@@ -458,7 +458,7 @@ docker stats vibetunnel
 ```
 
 **Reduce limits:**
-Edit `compose.yml` and adjust:
+Edit `compose.coolify.yml` and adjust:
 ```yaml
 deploy:
   resources:
