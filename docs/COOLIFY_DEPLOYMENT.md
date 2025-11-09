@@ -2,24 +2,61 @@
 
 Deploy VibeTunnel on Coolify with Tailscale for secure, authenticated terminal access from anywhere on your tailnet.
 
+## Quick Start
+
+```bash
+# 1. Install Tailscale on Coolify VPS
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+
+# 2. Deploy VibeTunnel in Coolify (point to web/compose.yml)
+
+# 3. Create Tailscale Services configuration
+sudo mkdir -p /etc/tailscale
+sudo tee /etc/tailscale/services.json > /dev/null <<'EOF'
+{
+  "version": "0.0.1",
+  "services": {
+    "svc:vibetunnel": {
+      "endpoints": {"tcp:443": "https://localhost:4020"}
+    }
+  }
+}
+EOF
+
+# 4. Register Tailscale Service
+sudo tailscale serve --service=svc:vibetunnel --config=/etc/tailscale/services.json
+
+# 5. Access from any device on your tailnet
+# https://coolify-vps.tail1234.ts.net
+```
+
 ## Overview
 
 This guide deploys VibeTunnel using Docker Compose on Coolify with:
-- ✅ **Tailscale Integration**: Coolify host on your tailnet
+- ✅ **Clean HTTPS Access**: `https://your-vps.tail1234.ts.net` (no ports!)
+- ✅ **Tailscale Services**: Declarative configuration file approach
 - ✅ **Secure Access**: Only accessible from your tailnet
 - ✅ **No Auth Keys**: No expiring tokens to manage
 - ✅ **Persistent Sessions**: Survives container restarts
-- ✅ **Simple Configuration**: Just install Tailscale on host and deploy
 
 ## Architecture
 
 ```
-[Your Phone/Laptop] → [Tailscale Network] → [Coolify VPS on Tailnet]
+[Your Phone/Laptop] → [Tailscale Network] → [Coolify VPS]
+                                                ↓
+                                    [Tailscale Service: svc:vibetunnel]
                                                 ↓
                                           [VibeTunnel Container:4020]
 ```
 
-**Key Point**: Tailscale runs on the Coolify host itself, not in containers. This eliminates auth key management.
+**Access**: `https://coolify-vps.tail1234.ts.net` (clean HTTPS, no ports!)
+
+**Key Points**:
+- Tailscale runs on the Coolify host itself (no auth key management)
+- Tailscale Services uses declarative configuration file
+- Service registered as `svc:vibetunnel` on your tailnet
+- Only accessible from your tailnet
 
 ## Prerequisites
 
@@ -113,7 +150,63 @@ If you prefer to paste the compose file directly:
 
 4. **Deploy**
 
-## Step 3: Verify Deployment
+## Step 3: Set Up Tailscale Service (Recommended)
+
+**Tailscale Services** provides clean HTTPS access using a declarative configuration file!
+
+### Create Service Configuration
+
+On your Coolify VPS, create a Tailscale Services configuration file:
+
+```bash
+# Create the services config file
+sudo mkdir -p /etc/tailscale
+sudo tee /etc/tailscale/services.json > /dev/null <<'EOF'
+{
+  "version": "0.0.1",
+  "services": {
+    "svc:vibetunnel": {
+      "endpoints": {
+        "tcp:443": "https://localhost:4020"
+      }
+    }
+  }
+}
+EOF
+```
+
+### Register the Service
+
+```bash
+# Register VibeTunnel as a Tailscale Service
+sudo tailscale serve --service=svc:vibetunnel --config=/etc/tailscale/services.json
+```
+
+This creates a service at: **`https://coolify-vps.tail1234.ts.net`** (no port needed!)
+
+### What This Does
+
+- ✅ **Automatic HTTPS** - Tailscale provides TLS certificates
+- ✅ **No port numbers** - Clean URL without `:4020`
+- ✅ **Tailnet-only** - Only accessible from your tailnet
+- ✅ **Declarative** - Configuration file managed approach
+- ✅ **Persistent** - Service survives reboots
+
+### Verify Tailscale Service
+
+```bash
+# Check service status
+sudo tailscale serve status
+```
+
+You should see:
+```
+Service: svc:vibetunnel
+https://coolify-vps.tail1234.ts.net (tailnet only)
+|-- / proxy http://127.0.0.1:4020
+```
+
+## Step 4: Verify Deployment
 
 ### Check Container Status
 
@@ -125,58 +218,41 @@ In Coolify:
 
 ### Test Access from Your Tailnet
 
-1. From any device on your tailnet (phone, laptop, etc.), visit:
+1. From any device on your tailnet (phone, laptop, tablet), visit:
    ```
-   http://coolify-vps.tail1234.ts.net:4020
+   https://coolify-vps.tail1234.ts.net
    ```
    (Replace with your actual Coolify VPS tailnet hostname)
 
-2. You should see the VibeTunnel interface
+2. You should see the VibeTunnel interface with HTTPS 🔒
 3. Try creating a terminal session
 
 **Note**: Only devices on your tailnet can access this. Public internet cannot reach it!
 
-## Step 4: Enable HTTPS (Optional)
+## Alternative: Public Access with Tailscale Funnel
 
-You have two options for HTTPS:
-
-### Option A: Tailscale HTTPS (Easiest - No DNS needed!)
-
-Tailscale can provide HTTPS for free:
+If you want to make VibeTunnel accessible to the **public internet**, you can enable funnel for your service:
 
 ```bash
-# On your Coolify VPS
-sudo tailscale cert $(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')
+# Enable public HTTPS access (use with caution!)
+sudo tailscale funnel --service=svc:vibetunnel on
 ```
 
-This creates SSL certificates that work with your tailnet hostname. Then update your VibeTunnel configuration to use HTTPS on port 443.
+This creates a **public** HTTPS URL that anyone can access.
 
-Access at: `https://coolify-vps.tail1234.ts.net`
+**⚠️ Warning**: This makes your VibeTunnel publicly accessible!
 
-**Pros**: Free, automatic, works on tailnet only
-**Cons**: Requires additional configuration
+If using funnel:
+1. Set `VIBETUNNEL_NO_AUTH=false` in Coolify
+2. Set `VIBETUNNEL_USERNAME` and `VIBETUNNEL_PASSWORD`
+3. Enable password authentication for security
 
-### Option B: Tailscale Funnel (Public HTTPS)
-
-If you want to make VibeTunnel accessible to the public internet:
-
+To disable public access:
 ```bash
-# On your Coolify VPS
-sudo tailscale funnel 4020
+sudo tailscale funnel --service=svc:vibetunnel off
 ```
 
-This creates a public HTTPS URL that anyone can access.
-
-**Warning**: This makes your VibeTunnel publicly accessible! Consider enabling password authentication if using funnel.
-
-### Option C: Coolify Reverse Proxy
-
-1. In Coolify, go to your VibeTunnel deployment
-2. Navigate to **Domains** tab
-3. Add domain: `vibetunnel.your-domain.com`
-4. Enable **SSL** (Coolify auto-provisions Let's Encrypt)
-
-**Recommendation**: Use Tailscale HTTPS (Option A) for tailnet-only access with encryption.
+**Recommendation**: Use Tailscale Services (tailnet-only) for private access.
 
 ## Configuration
 
@@ -247,7 +323,7 @@ Then redeploy in Coolify.
 ### Desktop Browser
 
 1. Ensure Tailscale is running on your computer
-2. Visit: `http://vibetunnel.tail1234.ts.net:4020`
+2. Visit: `https://coolify-vps.tail1234.ts.net`
 3. Create and use terminal sessions
 
 ### Mobile (iOS/Android)
@@ -255,7 +331,7 @@ Then redeploy in Coolify.
 1. Install Tailscale app on your phone
 2. Connect to your tailnet
 3. Open browser (Safari/Chrome)
-4. Visit: `http://vibetunnel.tail1234.ts.net:4020`
+4. Visit: `https://coolify-vps.tail1234.ts.net`
 5. **Pro tip**: Add to Home Screen for app-like experience
 
 ### iPad
@@ -305,10 +381,10 @@ VibeTunnel includes health checks:
 
 ```bash
 # From Coolify server
-docker exec vibetunnel-app curl -f http://localhost:4020/api/health
+docker exec vibetunnel curl -f http://localhost:4020/api/health
 ```
 
-Or visit: `http://vibetunnel.tail1234.ts.net:4020/api/health`
+Or visit: `https://coolify-vps.tail1234.ts.net/api/health`
 
 ## Security Best Practices
 
@@ -400,8 +476,8 @@ docker exec vibetunnel-tailscale tailscale status
 **Test connectivity:**
 ```bash
 # From another machine on tailnet
-ping vibetunnel.tail1234.ts.net
-curl http://vibetunnel.tail1234.ts.net:4020/api/health
+ping coolify-vps.tail1234.ts.net
+curl https://coolify-vps.tail1234.ts.net/api/health
 ```
 
 ### Authentication Fails
@@ -442,7 +518,7 @@ docker exec vibetunnel-app chown -R vibetunnel:vibetunnel /home/vibetunnel/.vibe
 
 **Check container stats:**
 ```bash
-docker stats vibetunnel-app vibetunnel-tailscale
+docker stats vibetunnel
 ```
 
 **Reduce limits:**
