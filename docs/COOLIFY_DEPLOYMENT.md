@@ -1,58 +1,64 @@
-# VibeTunnel Deployment on Coolify
+# VibeTunnel Deployment on Coolify with Tailscale
 
 Deploy VibeTunnel on Coolify with Tailscale for secure, authenticated terminal access from anywhere on your tailnet.
 
 ## Overview
 
 This guide deploys VibeTunnel using Docker Compose on Coolify with:
-- ✅ **Tailscale Integration**: Automatic tailnet connectivity
+- ✅ **Tailscale Integration**: Coolify host on your tailnet
 - ✅ **Secure Access**: Only accessible from your tailnet
-- ✅ **HTTPS**: Via Tailscale (optional) or Coolify reverse proxy
+- ✅ **No Auth Keys**: No expiring tokens to manage
 - ✅ **Persistent Sessions**: Survives container restarts
-- ✅ **Zero Configuration**: Works out of the box
+- ✅ **Simple Configuration**: Just install Tailscale on host and deploy
 
 ## Architecture
 
 ```
-[Your Phone/Laptop] → [Tailscale Network] → [Coolify Server]
+[Your Phone/Laptop] → [Tailscale Network] → [Coolify VPS on Tailnet]
                                                 ↓
-                                          [Tailscale Container]
-                                                ↓
-                                          [VibeTunnel Container]
-                                                ↓
-                                          [Terminal Sessions]
+                                          [VibeTunnel Container:4020]
 ```
+
+**Key Point**: Tailscale runs on the Coolify host itself, not in containers. This eliminates auth key management.
 
 ## Prerequisites
 
 1. **Coolify instance** (self-hosted or cloud)
 2. **Tailscale account** (free tier works)
-3. **Git repository** with your VibeTunnel fork
+3. **SSH access to Coolify VPS**
 
-## Step 1: Get Tailscale Auth Key
+## Step 1: Install Tailscale on Coolify VPS
 
-### Create Auth Key
+SSH into your Coolify server and install Tailscale:
 
-1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/settings/keys)
-2. Click **Generate auth key**
-3. Configure the key:
-   - ✅ **Reusable** (allows container restarts)
-   - ✅ **Ephemeral** (optional - auto-cleanup when offline)
-   - Set **Expiration** (90 days recommended, or never)
-   - Optional: Add **Tags** for ACL control (e.g., `tag:vibetunnel`)
+### Ubuntu/Debian
 
-4. Copy the auth key (starts with `tskey-auth-`)
-   ```
-   tskey-auth-xxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx
-   ```
+```bash
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
 
-### Important Notes
+# Start Tailscale and join your tailnet
+sudo tailscale up
 
-- **Keep the auth key secret** - it grants access to your tailnet
-- **Reusable keys** allow the container to restart without manual intervention
-- **Tagged keys** enable ACL-based access control
+# (Optional) Enable Tailscale SSH
+sudo tailscale up --ssh
 
-## Step 2: Deploy to Coolify
+# Verify installation
+tailscale status
+```
+
+### Get Your Tailnet Address
+
+```bash
+# Get your machine's tailnet hostname
+tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//'
+
+# Example output: coolify-vps.tail1234.ts.net
+```
+
+Save this hostname - you'll use it to access VibeTunnel!
+
+## Step 2: Deploy VibeTunnel on Coolify
 
 ### Option A: Deploy from Git Repository (Recommended)
 
@@ -65,30 +71,26 @@ This guide deploys VibeTunnel using Docker Compose on Coolify with:
    - Branch: `main` (or your deployment branch)
    - Docker Compose Location: `web/compose.yml`
 
-3. **Set Environment Variables**
+3. **Configure Environment Variables (Optional)**
 
-   Coolify automatically detects environment variables from the docker-compose file.
+   Coolify automatically detects environment variables from the compose file.
 
-   In Coolify's **Environment** tab, you'll see all configurable variables. Set these:
+   In Coolify's **Environment** tab, you'll see all configurable variables. Most have good defaults!
 
-   **REQUIRED:**
-   - `TS_AUTHKEY`: Your Tailscale auth key (from previous step)
+   **RECOMMENDED (already set by default):**
+   - `VIBETUNNEL_NO_AUTH=true` (tailnet-only access, no passwords)
+   - `VIBETUNNEL_VERBOSITY=info` (logging level)
 
-   **RECOMMENDED:**
-   - `VIBETUNNEL_NO_AUTH`: Set to `true` (for tailnet-only access)
-   - `VIBETUNNEL_VERBOSITY`: Set to `info` (or `debug` for troubleshooting)
-   - `PUSH_CONTACT_EMAIL`: Your email address
-
-   **OPTIONAL:**
+   **OPTIONAL (customize if needed):**
+   - `PUSH_CONTACT_EMAIL`: Your email for push notifications
    - `GIT_COMMITTER_NAME`: Name for git operations (default: VibeTunnel)
    - `GIT_COMMITTER_EMAIL`: Email for git operations (default: bot@vibetunnel.local)
-   - `TS_HOSTNAME`: Custom hostname on tailnet (default: vibetunnel)
 
-   All other variables have sensible defaults and can be left unchanged.
+   You can leave everything at defaults and it will work!
 
 4. **Deploy**
    - Click **Deploy**
-   - Wait for containers to start
+   - Wait for container to start
    - Check logs for any errors
 
 ### Option B: Deploy from Docker Compose File
@@ -103,11 +105,11 @@ If you prefer to paste the compose file directly:
    - Copy contents of `web/compose.yml` from your repository
    - Paste into Coolify editor
 
-3. **Configure Environment Variables**
-   - Coolify will auto-detect all variables from the compose file
+3. **Configure Environment Variables (Optional)**
+   - Coolify auto-detects all variables from the compose file
    - Go to **Environment** tab
-   - Set `TS_AUTHKEY` (required) and any other variables you want to customize
-   - See Configuration section below for all available options
+   - Defaults are already set - you can deploy as-is!
+   - See Configuration section below for customization options
 
 4. **Deploy**
 
@@ -118,58 +120,63 @@ If you prefer to paste the compose file directly:
 In Coolify:
 1. Go to your VibeTunnel deployment
 2. Check **Containers** tab
-3. Verify both containers are running:
-   - `vibetunnel-tailscale` (green)
-   - `vibetunnel-app` (green)
+3. Verify container is running:
+   - `vibetunnel` (green/healthy)
 
-### Check Tailscale Connection
+### Test Access from Your Tailnet
 
-1. Go to [Tailscale Admin Console](https://login.tailscale.com/admin/machines)
-2. Find your VibeTunnel machine (should show as online)
-3. Note the Tailscale hostname (e.g., `vibetunnel.tail1234.ts.net`)
-
-### Test Access
-
-1. From a device on your tailnet, visit:
+1. From any device on your tailnet (phone, laptop, etc.), visit:
    ```
-   http://vibetunnel.tail1234.ts.net:4020
+   http://coolify-vps.tail1234.ts.net:4020
    ```
+   (Replace with your actual Coolify VPS tailnet hostname)
 
 2. You should see the VibeTunnel interface
 3. Try creating a terminal session
+
+**Note**: Only devices on your tailnet can access this. Public internet cannot reach it!
 
 ## Step 4: Enable HTTPS (Optional)
 
 You have two options for HTTPS:
 
-### Option A: Coolify Reverse Proxy (Simpler)
+### Option A: Tailscale HTTPS (Easiest - No DNS needed!)
+
+Tailscale can provide HTTPS for free:
+
+```bash
+# On your Coolify VPS
+sudo tailscale cert $(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')
+```
+
+This creates SSL certificates that work with your tailnet hostname. Then update your VibeTunnel configuration to use HTTPS on port 443.
+
+Access at: `https://coolify-vps.tail1234.ts.net`
+
+**Pros**: Free, automatic, works on tailnet only
+**Cons**: Requires additional configuration
+
+### Option B: Tailscale Funnel (Public HTTPS)
+
+If you want to make VibeTunnel accessible to the public internet:
+
+```bash
+# On your Coolify VPS
+sudo tailscale funnel 4020
+```
+
+This creates a public HTTPS URL that anyone can access.
+
+**Warning**: This makes your VibeTunnel publicly accessible! Consider enabling password authentication if using funnel.
+
+### Option C: Coolify Reverse Proxy
 
 1. In Coolify, go to your VibeTunnel deployment
 2. Navigate to **Domains** tab
 3. Add domain: `vibetunnel.your-domain.com`
 4. Enable **SSL** (Coolify auto-provisions Let's Encrypt)
-5. Configure proxy to forward to `vibetunnel:4020`
 
-This gives you HTTPS via Coolify's reverse proxy.
-
-### Option B: Tailscale HTTPS (No DNS needed)
-
-Tailscale can provide HTTPS directly:
-
-1. SSH into your Coolify server
-2. Find the Tailscale container:
-   ```bash
-   docker ps | grep tailscale
-   ```
-
-3. Enable Tailscale HTTPS:
-   ```bash
-   docker exec vibetunnel-tailscale tailscale cert vibetunnel.tail1234.ts.net
-   ```
-
-4. Update docker-compose to use HTTPS (requires custom configuration)
-
-**Recommendation**: Use Coolify reverse proxy for simplicity.
+**Recommendation**: Use Tailscale HTTPS (Option A) for tailnet-only access with encryption.
 
 ## Configuration
 
@@ -178,12 +185,6 @@ Tailscale can provide HTTPS directly:
 Coolify automatically detects all environment variables from the docker-compose file and provides a UI to configure them.
 
 Navigate to your deployment → **Environment** tab to see and modify these values.
-
-#### Required
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `TS_AUTHKEY` | Tailscale auth key | `tskey-auth-xxxxx...` |
 
 #### Authentication
 
@@ -209,8 +210,7 @@ Navigate to your deployment → **Environment** tab to see and modify these valu
 | `PUSH_CONTACT_EMAIL` | `noreply@vibetunnel.local` | Email for push notification VAPID config |
 | `GIT_COMMITTER_NAME` | `VibeTunnel` | Name for git operations in terminals |
 | `GIT_COMMITTER_EMAIL` | `bot@vibetunnel.local` | Email for git operations |
-| `TS_HOSTNAME` | `vibetunnel` | Custom hostname on your tailnet |
-| `TS_SSH` | `false` | Enable SSH access via Tailscale |
+| `PORT` | `4020` | Port to expose VibeTunnel on (change if needed) |
 
 **Note:** Coolify shows all these variables in the UI with their default values. You only need to change the ones you want to customize.
 

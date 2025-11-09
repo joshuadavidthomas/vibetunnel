@@ -1,85 +1,30 @@
 version: '3.8'
 
 # ============================================================================
-# VibeTunnel with Tailscale - Coolify Deployment
+# VibeTunnel - Coolify Deployment with Tailscale
 # ============================================================================
 #
-# This Docker Compose file is optimized for Coolify deployment.
-# Coolify will automatically detect environment variables and provide a UI to set them.
+# PREREQUISITES:
+#   - Install Tailscale on your Coolify VPS host
+#   - Join the host to your tailnet: `sudo tailscale up`
 #
-# REQUIRED ENVIRONMENT VARIABLES (set in Coolify UI):
-#   - TS_AUTHKEY: Tailscale auth key (get from https://login.tailscale.com/admin/settings/keys)
+# DEPLOYMENT:
+#   1. Deploy this compose file in Coolify
+#   2. VibeTunnel will be accessible at: http://your-coolify-vps.tail1234.ts.net:4020
+#   3. Only devices on your tailnet can access it!
 #
-# RECOMMENDED ENVIRONMENT VARIABLES:
-#   - VIBETUNNEL_NO_AUTH: Set to "true" for tailnet-only access (no passwords)
-#   - VIBETUNNEL_VERBOSITY: Logging level (none/error/warn/info/debug)
-#   - PUSH_CONTACT_EMAIL: Your email for push notifications
-#
-# Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
+# ENVIRONMENT VARIABLES:
+#   Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
+#   Most have sensible defaults - you only need to change what you want to customize.
 # ============================================================================
 
 services:
-  # Tailscale sidecar - provides secure access to your tailnet
-  tailscale:
-    image: tailscale/tailscale:latest
-    container_name: vibetunnel-tailscale
-    hostname: vibetunnel
-    restart: unless-stopped
-
-    environment:
-      # REQUIRED: Tailscale auth key
-      # Generate at: https://login.tailscale.com/admin/settings/keys
-      # Recommendation: Create a reusable, tagged key with 90-day expiration
-      - TS_AUTHKEY=${TS_AUTHKEY:?Error - TS_AUTHKEY is required. Generate one at https://login.tailscale.com/admin/settings/keys}
-
-      # Tailscale configuration (do not change these)
-      - TS_STATE_DIR=/var/lib/tailscale
-      - TS_USERSPACE=true
-      - TS_ACCEPT_DNS=true
-
-      # ===== OPTIONAL TAILSCALE SETTINGS =====
-      # Uncomment the following in Coolify if you want to customize:
-
-      # Custom hostname on your tailnet (default: container name)
-      # - TS_HOSTNAME=${TS_HOSTNAME:-vibetunnel}
-
-      # Enable Tailscale SSH access to this container
-      # - TS_SSH=${TS_SSH:-false}
-
-    volumes:
-      # Persistent Tailscale state (keeps your machine registered)
-      - tailscale-state:/var/lib/tailscale
-
-      # Optional: Tailscale Serve configuration
-      # - ./tailscale-serve.json:/config/serve.json:ro
-
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-
-    # Health check
-    healthcheck:
-      test: ["CMD", "tailscale", "status"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-    networks:
-      - vibetunnel-network
-
-  # VibeTunnel server
   vibetunnel:
     build:
       context: .
-      dockerfile: Dockerfile.production
-    container_name: vibetunnel-app
+      dockerfile: Dockerfile
+    container_name: vibetunnel
     restart: unless-stopped
-
-    # Depend on Tailscale being ready
-    depends_on:
-      tailscale:
-        condition: service_healthy
 
     environment:
       # Node environment (do not change)
@@ -88,7 +33,7 @@ services:
 
       # ===== AUTHENTICATION =====
       # RECOMMENDED: Set to "true" for tailnet-only access (no password needed)
-      # Set to "false" if you want to require username/password authentication
+      # Your tailnet already provides security, so no need for additional auth
       - VIBETUNNEL_NO_AUTH=${VIBETUNNEL_NO_AUTH:-true}
 
       # OPTIONAL: Basic auth credentials (only used if VIBETUNNEL_NO_AUTH=false)
@@ -116,25 +61,19 @@ services:
       # Persistent session data
       - vibetunnel-data:/home/vibetunnel/.vibetunnel
 
-      # Optional: Mount workspace directories from host
-      # - ${WORKSPACE_PATH:-/data/workspace}:/workspace:rw
+      # OPTIONAL: Mount workspace directories from host
+      # Uncomment and configure in Coolify's Volumes tab:
+      # - /path/on/host/workspace:/workspace:rw
 
-      # Optional: Mount SSH keys for git operations
-      # - ${SSH_KEYS_PATH:-~/.ssh}:/home/vibetunnel/.ssh:ro
+      # OPTIONAL: Mount SSH keys for git operations
+      # - /path/on/host/.ssh:/home/vibetunnel/.ssh:ro
 
-      # Optional: Mount git config
-      # - ${GIT_CONFIG_PATH:-~/.gitconfig}:/home/vibetunnel/.gitconfig:ro
+      # OPTIONAL: Mount git config
+      # - /path/on/host/.gitconfig:/home/vibetunnel/.gitconfig:ro
 
-    # Expose port on the network (accessible to Tailscale container)
-    expose:
-      - "4020"
-
-    # For local testing, you can expose the port (comment out for production)
-    # ports:
-    #   - "127.0.0.1:4020:4020"
-
-    networks:
-      - vibetunnel-network
+    # Expose port to host (accessible via Tailscale)
+    ports:
+      - "${PORT:-4020}:4020"
 
     # Resource limits (adjust based on your server)
     deploy:
@@ -161,26 +100,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Tailscale Serve proxy (optional - enables HTTPS with Tailscale identity auth)
-  # Uncomment if you want Tailscale to handle HTTPS and authentication
-  # tailscale-serve:
-  #   image: tailscale/tailscale:latest
-  #   container_name: vibetunnel-tailscale-serve
-  #   restart: unless-stopped
-  #   command: serve --bg --https=443 http://vibetunnel:4020
-  #   depends_on:
-  #     - tailscale
-  #     - vibetunnel
-  #   network_mode: "service:tailscale"
-  #   volumes:
-  #     - tailscale-state:/var/lib/tailscale:ro
-
-networks:
-  vibetunnel-network:
-    driver: bridge
-
 volumes:
-  tailscale-state:
-    driver: local
   vibetunnel-data:
     driver: local
