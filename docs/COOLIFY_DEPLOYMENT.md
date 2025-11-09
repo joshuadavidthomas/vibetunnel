@@ -11,7 +11,10 @@ sudo tailscale up
 
 # 2. Deploy VibeTunnel in Coolify (point to web/compose.coolify.yml)
 
-# 3. Access from any device on your tailnet
+# 3. Configure domain in Coolify UI
+# Go to: Domains tab → Add: http://your-vps.tail1234.ts.net:4020
+
+# 4. Access from any device on your tailnet
 # http://coolify-vps.tail1234.ts.net:4020
 ```
 
@@ -107,7 +110,13 @@ Save this hostname - you'll use it to access VibeTunnel!
 
    You can leave everything at defaults and it will work!
 
-4. **Deploy**
+4. **Configure Domain** (Important for Coolify proxy)
+   - After deployment, go to your VibeTunnel service
+   - Click on **Domains** tab
+   - Add domain: `http://your-vps.tail1234.ts.net:4020`
+   - This tells Coolify's proxy where to route traffic
+
+5. **Deploy**
    - Click **Deploy**
    - Wait for container to start
    - Check logs for any errors
@@ -146,16 +155,23 @@ In Coolify:
 
 ### Access from Your Tailnet
 
-1. From any device on your tailnet (phone, laptop, tablet), visit:
+1. **Verify Domain is Configured** in Coolify:
+   - Go to your VibeTunnel deployment → **Domains** tab
+   - Should show: `http://your-vps.tail1234.ts.net:4020`
+   - If not configured, add it now
+
+2. From any device on your tailnet (phone, laptop, tablet), visit:
    ```
    http://coolify-vps.tail1234.ts.net:4020
    ```
    (Replace `coolify-vps` with your actual Coolify VPS tailnet hostname)
 
-2. You should see the VibeTunnel interface
-3. Try creating a terminal session
+3. You should see the VibeTunnel interface
+4. Try creating a terminal session
 
 **Note**: Only devices on your tailnet can access this. Public internet cannot reach it!
+
+**Troubleshooting 404 errors**: If you get a 404, make sure the domain is configured in Coolify's Domains tab. Coolify's proxy needs to know where to route traffic.
 
 ## (Optional) Add HTTPS with Tailscale Serve
 

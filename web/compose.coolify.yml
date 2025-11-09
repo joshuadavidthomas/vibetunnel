@@ -27,7 +27,14 @@ services:
     restart: unless-stopped
 
     # Override Dockerfile's test command to start the server
-    command: ["pnpm", "exec", "tsx", "src/cli.ts"]
+    # Bind to 0.0.0.0 so Coolify proxy can access it
+    command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0"]
+
+    # Coolify labels for proxy configuration
+    labels:
+      - "coolify.managed=true"
+      - "coolify.type=service"
+      - "coolify.name=vibetunnel"
 
     environment:
       # Node environment (do not change)
