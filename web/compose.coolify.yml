@@ -28,8 +28,8 @@ services:
     container_name: vibetunnel
     restart: unless-stopped
 
-    # Bind to 0.0.0.0 so Coolify proxy can access it
-    command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0"]
+    # Bind to 0.0.0.0 so Coolify proxy can access it, disable auth for tailnet
+    command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0", "--no-auth"]
 
     environment:
 
@@ -38,21 +38,17 @@ services:
       - PORT=4020
 
       # ===== AUTHENTICATION =====
-      # RECOMMENDED: Set to "true" for tailnet-only access (no password needed)
-      # Your tailnet already provides security, so no need for additional auth
-      - VIBETUNNEL_NO_AUTH=${VIBETUNNEL_NO_AUTH:-true}
-
-      # OPTIONAL: Basic auth credentials (only used if VIBETUNNEL_NO_AUTH=false)
-      # Uncomment these lines in Coolify if you want password protection:
+      # OPTIONAL: Basic auth credentials (uncomment to enable password protection)
+      # Remove --no-auth from command above if you want to use these:
       # - VIBETUNNEL_USERNAME=${VIBETUNNEL_USERNAME:-admin}
       # - VIBETUNNEL_PASSWORD=${VIBETUNNEL_PASSWORD:-changeme}
 
       # ===== LOGGING =====
-      # Verbosity: none, error, warn, info, debug
-      - VIBETUNNEL_VERBOSITY=${VIBETUNNEL_VERBOSITY:-info}
+      # Log levels: silent, error, warn, info, verbose, debug
+      - VIBETUNNEL_LOG_LEVEL=${VIBETUNNEL_LOG_LEVEL:-info}
 
-      # Debug mode (set to "true" for detailed logs)
-      - VIBETUNNEL_DEBUG=${VIBETUNNEL_DEBUG:-false}
+      # Legacy debug mode (set to "true" or "1" for debug logs)
+      # - VIBETUNNEL_DEBUG=${VIBETUNNEL_DEBUG:-false}
 
       # ===== PUSH NOTIFICATIONS =====
       # Email address for push notification VAPID configuration
