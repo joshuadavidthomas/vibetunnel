@@ -33,9 +33,6 @@ services:
     command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0"]
 
     environment:
-      # Coolify magic variables - automatically generates domain and proxy config
-      - SERVICE_URL_VIBETUNNEL_4020
-      - SERVICE_FQDN_VIBETUNNEL
 
       # Node environment (do not change)
       - NODE_ENV=production
