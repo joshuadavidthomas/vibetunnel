@@ -10,8 +10,10 @@ version: '3.8'
 #
 # DEPLOYMENT:
 #   1. Deploy this compose file in Coolify
-#   2. Access VibeTunnel at: http://your-coolify-vps.tail1234.ts.net:4020
-#   3. Only devices on your tailnet can access it!
+#   2. Configure your Tailscale domain in Coolify's Domains tab
+#   3. Coolify magic variables (SERVICE_URL_VIBETUNNEL_4020) handle proxy routing
+#   4. Access VibeTunnel at: http://your-coolify-vps.tail1234.ts.net:4020
+#   5. Only devices on your tailnet can access it!
 #
 # ENVIRONMENT VARIABLES:
 #   Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
@@ -31,6 +33,10 @@ services:
     command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0"]
 
     environment:
+      # Coolify magic variables - automatically generates domain and proxy config
+      - SERVICE_URL_VIBETUNNEL_4020
+      - SERVICE_FQDN_VIBETUNNEL
+
       # Node environment (do not change)
       - NODE_ENV=production
       - PORT=4020

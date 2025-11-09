@@ -13,6 +13,7 @@ sudo tailscale up
 
 # 3. Configure domain in Coolify UI
 # Go to: Domains tab → Add: http://your-vps.tail1234.ts.net:4020
+# Magic variables (SERVICE_URL_VIBETUNNEL_4020) handle proxy routing automatically
 
 # 4. Access from any device on your tailnet
 # http://coolify-vps.tail1234.ts.net:4020
@@ -110,11 +111,11 @@ Save this hostname - you'll use it to access VibeTunnel!
 
    You can leave everything at defaults and it will work!
 
-4. **Configure Domain** (Important for Coolify proxy)
+4. **Configure Domain**
    - After deployment, go to your VibeTunnel service
    - Click on **Domains** tab
    - Add domain: `http://your-vps.tail1234.ts.net:4020`
-   - This tells Coolify's proxy where to route traffic
+   - Coolify magic variables (`SERVICE_URL_VIBETUNNEL_4020`) automatically handle proxy routing
 
 5. **Deploy**
    - Click **Deploy**
@@ -171,7 +172,7 @@ In Coolify:
 
 **Note**: Only devices on your tailnet can access this. Public internet cannot reach it!
 
-**Troubleshooting 404 errors**: If you get a 404, make sure the domain is configured in Coolify's Domains tab. Coolify's proxy needs to know where to route traffic.
+**Troubleshooting 404 errors**: If you get a 404, make sure the domain is configured in Coolify's Domains tab. The `SERVICE_URL_VIBETUNNEL_4020` magic variable tells Coolify's proxy to route traffic to port 4020.
 
 ## (Optional) Add HTTPS with Tailscale Serve
 
