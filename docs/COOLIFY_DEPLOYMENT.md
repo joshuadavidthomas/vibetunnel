@@ -11,23 +11,17 @@ sudo tailscale up
 
 # 2. Deploy VibeTunnel in Coolify (point to web/compose.yml)
 
-# 3. Create Tailscale Services configuration
-sudo mkdir -p /etc/tailscale
-sudo tee /etc/tailscale/services.json > /dev/null <<'EOF'
-{
-  "version": "0.0.1",
-  "services": {
-    "svc:vibetunnel": {
-      "endpoints": {"tcp:443": "https://localhost:4020"}
-    }
-  }
-}
-EOF
+# 3. Define Service in Tailscale admin console
+# Go to: https://login.tailscale.com/admin/services
+# Name: vibetunnel, Endpoints: tcp:443
 
-# 4. Register Tailscale Service
-sudo tailscale serve --service=svc:vibetunnel --config=/etc/tailscale/services.json
+# 4. Configure and advertise the service
+sudo tailscale serve --service=svc:vibetunnel https://localhost:4020
 
-# 5. Access from any device on your tailnet
+# 5. Approve in admin console (if needed)
+# https://login.tailscale.com/admin/services → Approve pending host
+
+# 6. Access from any device on your tailnet
 # https://coolify-vps.tail1234.ts.net
 ```
 
@@ -150,49 +144,57 @@ If you prefer to paste the compose file directly:
 
 4. **Deploy**
 
-## Step 3: Set Up Tailscale Service (Recommended)
+## Step 3: Define and Advertise Tailscale Service
 
-**Tailscale Services** provides clean HTTPS access using a declarative configuration file!
+**Tailscale Services** provides clean HTTPS access without port numbers!
 
-### Create Service Configuration
+### Step 3a: Define the Service (via Admin Console)
 
-On your Coolify VPS, create a Tailscale Services configuration file:
+1. Open the [Services](https://login.tailscale.com/admin/services) page in Tailscale admin console
+2. Select **Advertise** → **Define a Service**
+3. Configure:
+   - **Name**: `vibetunnel`
+   - **Description**: VibeTunnel terminal access
+   - **Endpoints**: `tcp:443` (or `do-not-validate` to skip validation)
+   - **Tags** (optional): Add tags for ACL control
+4. Select **Add service**
 
-```bash
-# Create the services config file
-sudo mkdir -p /etc/tailscale
-sudo tee /etc/tailscale/services.json > /dev/null <<'EOF'
-{
-  "version": "0.0.1",
-  "services": {
-    "svc:vibetunnel": {
-      "endpoints": {
-        "tcp:443": "https://localhost:4020"
-      }
-    }
-  }
-}
-EOF
-```
+### Step 3b: Configure and Advertise the Service Host
 
-### Register the Service
+On your Coolify VPS, run:
 
 ```bash
-# Register VibeTunnel as a Tailscale Service
-sudo tailscale serve --service=svc:vibetunnel --config=/etc/tailscale/services.json
+# Configure and advertise VibeTunnel as a Tailscale Service
+sudo tailscale serve --service=svc:vibetunnel https://localhost:4020
 ```
 
-This creates a service at: **`https://coolify-vps.tail1234.ts.net`** (no port needed!)
+This single command:
+- ✅ **Configures** the endpoint mapping
+- ✅ **Advertises** the service to your tailnet
+- ✅ **Provisions HTTPS** with automatic TLS certificates
+- ✅ **Runs in background** - persistent across sessions
 
-### What This Does
+You'll see output like:
+```
+Available on your tailnet:
 
-- ✅ **Automatic HTTPS** - Tailscale provides TLS certificates
-- ✅ **No port numbers** - Clean URL without `:4020`
-- ✅ **Tailnet-only** - Only accessible from your tailnet
-- ✅ **Declarative** - Configuration file managed approach
-- ✅ **Persistent** - Service survives reboots
+https://coolify-vps.tail1234.ts.net/
+|-- proxy http://127.0.0.1:4020
 
-### Verify Tailscale Service
+Served by svc:vibetunnel
+```
+
+### Step 3c: Approve the Service Host (if needed)
+
+If your tailnet doesn't have auto-approval set up:
+
+1. Go to [Services](https://login.tailscale.com/admin/services) in admin console
+2. Find `vibetunnel` and locate pending advertisements
+3. Select **Approve**
+
+After approval, your service is live at: **`https://coolify-vps.tail1234.ts.net`** (no ports!)
+
+### Verify Service Status
 
 ```bash
 # Check service status
@@ -201,10 +203,32 @@ sudo tailscale serve status
 
 You should see:
 ```
-Service: svc:vibetunnel
 https://coolify-vps.tail1234.ts.net (tailnet only)
 |-- / proxy http://127.0.0.1:4020
+
+Served by svc:vibetunnel
 ```
+
+### (Optional) Set Up Auto-Approval
+
+To avoid manual approval for future updates or re-deployments:
+
+1. Open [Access Controls](https://login.tailscale.com/admin/acls) in Tailscale admin console
+2. Add an auto-approval policy:
+
+```json
+{
+  "autoApprovers": {
+    "serviceProxies": {
+      "svc:vibetunnel": ["tag:server"]
+    }
+  }
+}
+```
+
+This allows devices tagged with `tag:server` to automatically advertise for `svc:vibetunnel`.
+
+**Note**: The Coolify VPS must be tagged (not user-authenticated) for this to work. Tailscale Services require tag-based device identities.
 
 ## Step 4: Verify Deployment
 
