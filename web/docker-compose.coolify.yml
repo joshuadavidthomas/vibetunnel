@@ -1,7 +1,22 @@
 version: '3.8'
 
-# Coolify-optimized VibeTunnel deployment with Tailscale sidecar
-# This allows VibeTunnel to be accessible on your tailnet with automatic HTTPS and authentication
+# ============================================================================
+# VibeTunnel with Tailscale - Coolify Deployment
+# ============================================================================
+#
+# This Docker Compose file is optimized for Coolify deployment.
+# Coolify will automatically detect environment variables and provide a UI to set them.
+#
+# REQUIRED ENVIRONMENT VARIABLES (set in Coolify UI):
+#   - TS_AUTHKEY: Tailscale auth key (get from https://login.tailscale.com/admin/settings/keys)
+#
+# RECOMMENDED ENVIRONMENT VARIABLES:
+#   - VIBETUNNEL_NO_AUTH: Set to "true" for tailnet-only access (no passwords)
+#   - VIBETUNNEL_VERBOSITY: Logging level (none/error/warn/info/debug)
+#   - PUSH_CONTACT_EMAIL: Your email for push notifications
+#
+# Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
+# ============================================================================
 
 services:
   # Tailscale sidecar - provides secure access to your tailnet
@@ -12,23 +27,24 @@ services:
     restart: unless-stopped
 
     environment:
-      # REQUIRED: Set this in Coolify environment variables
-      # Get auth key from: https://login.tailscale.com/admin/settings/keys
-      - TS_AUTHKEY=${TS_AUTHKEY:?TS_AUTHKEY is required}
+      # REQUIRED: Tailscale auth key
+      # Generate at: https://login.tailscale.com/admin/settings/keys
+      # Recommendation: Create a reusable, tagged key with 90-day expiration
+      - TS_AUTHKEY=${TS_AUTHKEY:?Error - TS_AUTHKEY is required. Generate one at https://login.tailscale.com/admin/settings/keys}
 
-      # Tailscale configuration
+      # Tailscale configuration (do not change these)
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_USERSPACE=true
       - TS_ACCEPT_DNS=true
 
-      # Optional: Tailscale Serve configuration (uncomment to enable)
-      # - TS_SERVE_CONFIG=/config/serve.json
+      # ===== OPTIONAL TAILSCALE SETTINGS =====
+      # Uncomment the following in Coolify if you want to customize:
 
-      # Optional: Custom hostname
-      # - TS_HOSTNAME=vibetunnel
+      # Custom hostname on your tailnet (default: container name)
+      # - TS_HOSTNAME=${TS_HOSTNAME:-vibetunnel}
 
-      # Optional: Enable SSH access via Tailscale
-      # - TS_SSH=true
+      # Enable Tailscale SSH access to this container
+      # - TS_SSH=${TS_SSH:-false}
 
     volumes:
       # Persistent Tailscale state (keeps your machine registered)
@@ -66,29 +82,33 @@ services:
         condition: service_healthy
 
     environment:
-      # Node environment
+      # Node environment (do not change)
       - NODE_ENV=production
       - PORT=4020
 
-      # Authentication options
-      # Option 1: No auth (rely on Tailscale network security) - RECOMMENDED for Tailscale
+      # ===== AUTHENTICATION =====
+      # RECOMMENDED: Set to "true" for tailnet-only access (no password needed)
+      # Set to "false" if you want to require username/password authentication
       - VIBETUNNEL_NO_AUTH=${VIBETUNNEL_NO_AUTH:-true}
 
-      # Option 2: Tailscale identity headers (if Tailscale Serve is configured)
-      # No additional config needed - auto-detected
+      # OPTIONAL: Basic auth credentials (only used if VIBETUNNEL_NO_AUTH=false)
+      # Uncomment these lines in Coolify if you want password protection:
+      # - VIBETUNNEL_USERNAME=${VIBETUNNEL_USERNAME:-admin}
+      # - VIBETUNNEL_PASSWORD=${VIBETUNNEL_PASSWORD:-changeme}
 
-      # Option 3: Basic auth (uncomment if needed)
-      # - VIBETUNNEL_USERNAME=${VIBETUNNEL_USERNAME}
-      # - VIBETUNNEL_PASSWORD=${VIBETUNNEL_PASSWORD}
-
-      # Logging
+      # ===== LOGGING =====
+      # Verbosity: none, error, warn, info, debug
       - VIBETUNNEL_VERBOSITY=${VIBETUNNEL_VERBOSITY:-info}
+
+      # Debug mode (set to "true" for detailed logs)
       - VIBETUNNEL_DEBUG=${VIBETUNNEL_DEBUG:-false}
 
-      # Push notifications
+      # ===== PUSH NOTIFICATIONS =====
+      # Email address for push notification VAPID configuration
       - PUSH_CONTACT_EMAIL=${PUSH_CONTACT_EMAIL:-noreply@vibetunnel.local}
 
-      # Git configuration (for terminal git operations)
+      # ===== GIT CONFIGURATION =====
+      # Git user info for terminal git operations
       - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-VibeTunnel}
       - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-bot@vibetunnel.local}
 

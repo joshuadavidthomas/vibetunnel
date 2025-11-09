@@ -67,23 +67,24 @@ This guide deploys VibeTunnel using Docker Compose on Coolify with:
 
 3. **Set Environment Variables**
 
-   In Coolify's Environment tab, add:
+   Coolify automatically detects environment variables from the docker-compose file.
 
-   ```env
-   # REQUIRED
-   TS_AUTHKEY=tskey-auth-xxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxx
+   In Coolify's **Environment** tab, you'll see all configurable variables. Set these:
 
-   # RECOMMENDED
-   VIBETUNNEL_NO_AUTH=true
-   VIBETUNNEL_VERBOSITY=info
-   PUSH_CONTACT_EMAIL=your-email@example.com
+   **REQUIRED:**
+   - `TS_AUTHKEY`: Your Tailscale auth key (from previous step)
 
-   # OPTIONAL
-   GIT_COMMITTER_NAME=VibeTunnel
-   GIT_COMMITTER_EMAIL=bot@vibetunnel.local
-   ```
+   **RECOMMENDED:**
+   - `VIBETUNNEL_NO_AUTH`: Set to `true` (for tailnet-only access)
+   - `VIBETUNNEL_VERBOSITY`: Set to `info` (or `debug` for troubleshooting)
+   - `PUSH_CONTACT_EMAIL`: Your email address
 
-   See `.env.coolify.example` for all options.
+   **OPTIONAL:**
+   - `GIT_COMMITTER_NAME`: Name for git operations (default: VibeTunnel)
+   - `GIT_COMMITTER_EMAIL`: Email for git operations (default: bot@vibetunnel.local)
+   - `TS_HOSTNAME`: Custom hostname on tailnet (default: vibetunnel)
+
+   All other variables have sensible defaults and can be left unchanged.
 
 4. **Deploy**
    - Click **Deploy**
@@ -99,10 +100,14 @@ If you prefer to paste the compose file directly:
    - Choose **Docker Compose (from file)**
 
 2. **Paste Docker Compose**
-   - Copy contents of `web/docker-compose.coolify.yml`
+   - Copy contents of `web/docker-compose.coolify.yml` from your repository
    - Paste into Coolify editor
 
-3. **Set Environment Variables** (same as Option A)
+3. **Configure Environment Variables**
+   - Coolify will auto-detect all variables from the compose file
+   - Go to **Environment** tab
+   - Set `TS_AUTHKEY` (required) and any other variables you want to customize
+   - See Configuration section below for all available options
 
 4. **Deploy**
 
@@ -170,53 +175,44 @@ Tailscale can provide HTTPS directly:
 
 ### Environment Variables
 
-Configure in Coolify's Environment tab:
+Coolify automatically detects all environment variables from the docker-compose file and provides a UI to configure them.
+
+Navigate to your deployment → **Environment** tab to see and modify these values.
 
 #### Required
 
-```env
-# Tailscale authentication
-TS_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
-```
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TS_AUTHKEY` | Tailscale auth key | `tskey-auth-xxxxx...` |
 
-#### Authentication Options
+#### Authentication
 
-```env
-# Option 1: No auth (recommended for tailnet-only access)
-VIBETUNNEL_NO_AUTH=true
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VIBETUNNEL_NO_AUTH` | `true` | Set to `true` for tailnet-only access (no passwords) |
+| `VIBETUNNEL_USERNAME` | - | Username for password auth (only if `NO_AUTH=false`) |
+| `VIBETUNNEL_PASSWORD` | - | Password for password auth (only if `NO_AUTH=false`) |
 
-# Option 2: Password authentication
-VIBETUNNEL_NO_AUTH=false
-VIBETUNNEL_USERNAME=admin
-VIBETUNNEL_PASSWORD=your-secure-password
-```
+**Recommendation:** Keep `VIBETUNNEL_NO_AUTH=true` since Tailscale already provides security.
 
 #### Logging
 
-```env
-# Verbosity: none, error, warn, info, debug
-VIBETUNNEL_VERBOSITY=info
-
-# Debug mode
-VIBETUNNEL_DEBUG=false
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VIBETUNNEL_VERBOSITY` | `info` | Logging level: `none`, `error`, `warn`, `info`, `debug` |
+| `VIBETUNNEL_DEBUG` | `false` | Enable debug mode for detailed logs |
 
 #### Optional Settings
 
-```env
-# Push notifications
-PUSH_CONTACT_EMAIL=you@example.com
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PUSH_CONTACT_EMAIL` | `noreply@vibetunnel.local` | Email for push notification VAPID config |
+| `GIT_COMMITTER_NAME` | `VibeTunnel` | Name for git operations in terminals |
+| `GIT_COMMITTER_EMAIL` | `bot@vibetunnel.local` | Email for git operations |
+| `TS_HOSTNAME` | `vibetunnel` | Custom hostname on your tailnet |
+| `TS_SSH` | `false` | Enable SSH access via Tailscale |
 
-# Git configuration
-GIT_COMMITTER_NAME=VibeTunnel
-GIT_COMMITTER_EMAIL=bot@vibetunnel.local
-
-# Tailscale hostname
-TS_HOSTNAME=vibetunnel
-
-# Enable Tailscale SSH
-TS_SSH=true
-```
+**Note:** Coolify shows all these variables in the UI with their default values. You only need to change the ones you want to customize.
 
 ### Volume Mounts
 
