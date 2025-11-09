@@ -27,8 +27,8 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 
 # Build the application (creates public/ directory with frontend assets)
-# Use build:ci which skips Mac app version validation
-RUN pnpm run build:ci
+# Use build-docker.js which skips Mac app validation and native executable build
+RUN node scripts/build-docker.js
 
 # Expose the default port
 EXPOSE 4020
