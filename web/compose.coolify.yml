@@ -1,0 +1,107 @@
+version: '3.8'
+
+# ============================================================================
+# VibeTunnel - Coolify Deployment with Tailscale
+# ============================================================================
+#
+# PREREQUISITES:
+#   - Install Tailscale on your Coolify VPS host: `curl -fsSL https://tailscale.com/install.sh | sh`
+#   - Join the host to your tailnet: `sudo tailscale up`
+#
+# DEPLOYMENT:
+#   1. Deploy this compose file in Coolify
+#   2. Configure your Tailscale domain in Coolify's Domains tab
+#   3. Coolify magic variables (SERVICE_URL_VIBETUNNEL_4020) handle proxy routing
+#   4. Access VibeTunnel at: http://your-coolify-vps.tail1234.ts.net:4020
+#   5. Only devices on your tailnet can access it!
+#
+# ENVIRONMENT VARIABLES:
+#   Coolify will show all ${VARIABLE:-default} as configurable options in the UI.
+#   Most have sensible defaults - you only need to change what you want to customize.
+# ============================================================================
+
+services:
+  vibetunnel:
+    build:
+      context: .
+      dockerfile: Dockerfile.coolify
+    container_name: vibetunnel
+    restart: unless-stopped
+
+    # Bind to 0.0.0.0 so Coolify proxy can access it, disable auth for tailnet
+    command: ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0", "--no-auth"]
+
+    environment:
+
+      # Node environment (do not change)
+      - NODE_ENV=production
+      - PORT=4020
+
+      # ===== AUTHENTICATION =====
+      # OPTIONAL: Basic auth credentials (uncomment to enable password protection)
+      # Remove --no-auth from command above if you want to use these:
+      # - VIBETUNNEL_USERNAME=${VIBETUNNEL_USERNAME:-admin}
+      # - VIBETUNNEL_PASSWORD=${VIBETUNNEL_PASSWORD:-changeme}
+
+      # ===== LOGGING =====
+      # Log levels: silent, error, warn, info, verbose, debug
+      - VIBETUNNEL_LOG_LEVEL=${VIBETUNNEL_LOG_LEVEL:-info}
+
+      # Legacy debug mode (set to "true" or "1" for debug logs)
+      # - VIBETUNNEL_DEBUG=${VIBETUNNEL_DEBUG:-false}
+
+      # ===== PUSH NOTIFICATIONS =====
+      # Email address for push notification VAPID configuration
+      - PUSH_CONTACT_EMAIL=${PUSH_CONTACT_EMAIL:-noreply@vibetunnel.local}
+
+      # ===== GIT CONFIGURATION =====
+      # Git user info for terminal git operations
+      - GIT_COMMITTER_NAME=${GIT_COMMITTER_NAME:-VibeTunnel}
+      - GIT_COMMITTER_EMAIL=${GIT_COMMITTER_EMAIL:-bot@vibetunnel.local}
+
+    volumes:
+      # Persistent session data
+      - vibetunnel-data:/home/vibetunnel/.vibetunnel
+
+      # OPTIONAL: Mount workspace directories from host
+      # Uncomment and configure in Coolify's Volumes tab:
+      # - /path/on/host/workspace:/workspace:rw
+
+      # OPTIONAL: Mount SSH keys for git operations
+      # - /path/on/host/.ssh:/home/vibetunnel/.ssh:ro
+
+      # OPTIONAL: Mount git config
+      # - /path/on/host/.gitconfig:/home/vibetunnel/.gitconfig:ro
+
+    # Expose port to host (accessible via Tailscale)
+    ports:
+      - "${PORT:-4020}:4020"
+
+    # Resource limits (adjust based on your server)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4020/api/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  vibetunnel-data:
+    driver: local

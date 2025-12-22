@@ -1,0 +1,37 @@
+# Production Dockerfile for Coolify deployment
+FROM node:22-slim
+
+# Install system dependencies required for node-pty
+RUN apt-get update && apt-get install -y \
+    python3 \
+    build-essential \
+    git \
+    curl \
+    libpam0g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pnpm
+RUN npm install -g pnpm@latest
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+COPY node-pty/package.json ./node-pty/
+
+# Copy all source code (needed for postinstall scripts)
+COPY . .
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build the application (creates public/ directory with frontend assets)
+# Use build-docker.js which skips Mac app validation and native executable build
+RUN node scripts/build-docker.js
+
+# Expose the default port
+EXPOSE 4020
+
+# Start the server
+CMD ["pnpm", "exec", "tsx", "src/cli.ts", "--bind", "0.0.0.0"]
